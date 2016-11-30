@@ -1,0 +1,120 @@
+#+Title: CSV Converter
+#+Email: nalisarc@gmail.com
+#+author: Daniel Alexander Smith
+* Readme
+html2csv is a simple script that takes an html page, extracts the table from it, and returns a csv file as an output.
+It has been tested in debian with python 3.4
+To run the script, first make sure it is executable.
+Then enter something like:
+  ~/./main.py filetoprocess
+check the help option for details.
+* Licence
+#+name: Licence
+#+BEGIN_EXAMPLE 
+  The MIT License (MIT)
+  Copyright (c) 2016 Daniel Alexander Smith
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#+END_EXAMPLE
+* Code
+#+name: setup.py
+#+BEGIN_SRC python :tangle setup.py :shebang #!/usr/bin/python3
+  from cx_Freeze import setup, Executable
+
+  # Dependencies are automatically detected, but it might need
+  # fine tuning.
+  buildOptions = dict(packages = [], excludes = [])
+
+  base = 'Console'
+
+  executables = [
+      Executable('main.py', base=base, targetName = 'html2csv')
+  ]
+
+  setup(name='html2csv',
+	version = '0.2.0',
+	description = 'a simple html to csv converter',
+	options = dict(build_exe = buildOptions),
+	executables = executables)
+
+#+END_SRC
+
+#+name: main.py
+#+BEGIN_SRC python :tangle main.py :shebang #!/usr/bin/python3 :results output    
+  from bs4 import BeautifulSoup
+  import requests
+
+  import sys
+  import re
+  import csv
+  import argparse
+
+  parser = argparse.ArgumentParser(description="Converts html tables into csv tables")
+
+  parser.add_argument("-v","--verbosity", help="Enables verbose mode, usefule for debugging.", action="store_true")
+  parser.add_argument("file", help="A file to read in", nargs='*')
+  #parser.add_argument("--ommit-column", help="Ommits a column from the output", nargs='+')
+
+  args = parser.parse_args()
+
+  if args.verbosity:
+          print("Verbose mode enabled")
+          def verboseprint(*args):
+                  for arg in args:
+                          print(arg,)
+                  return None
+  else:
+          verboseprint = lambda *a: None
+  """
+  def url_reader(url):
+          site = requests.get(url)
+          return site.text
+  """
+  def file_reader(file_):
+          with open(file_, 'rb') as f:
+                  return f.read()
+  def cell_text(cell):
+          # strips down the cell for read-ablility
+          return " ".join(cell.stripped_strings)
+
+
+  def converter(in_, out):
+          pattern = 't[dh]'
+          with open(out,'w') as o: #Makes sure that file spawn before processing
+                  soup = BeautifulSoup(in_,'html.parser')
+                  output = csv.writer(o)
+                  table = soup.find('table')
+                  for row in table.find_all('tr'):
+                          col = [cell_text(ele)
+				 for ele in row.find_all(re.compile(pattern))
+                          ]
+                          col.remove(col[2])
+                          output.writerow(col)
+                          output.writerow([])
+
+  def main(args):
+          if args.file:
+                  verboseprint("begining coversion process")
+          else:
+                  verboseprint("No inputs specified")
+                  return 1
+
+          if args.file:               
+                  for f in args.file:
+                          verboseprint("Processing: {0}".format(f))
+                          converter((file_reader(f)),(str(f) + ".csv"))
+
+          """        
+          if args.url:
+                  for u in args.url:
+                          verboseprint("Processing: {0}".format(u))
+                          converter(url_reader(u),(str(u) + ".csv"))"""
+          return None
+  if __name__ == '__main__':
+          main(args)
+          sys.exit()
+#+END_SRC
