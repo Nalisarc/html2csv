@@ -2,3 +2,7 @@
 .csv
 /<html>
 .csv
+/ignoreme
+*~
+*.pyc
+/tests/testcase.html.csv

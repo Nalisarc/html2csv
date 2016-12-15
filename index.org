@@ -1,16 +1,24 @@
-#+Title: CSV Converter
+#+Title: HTML to CSV Converter
 #+Email: nalisarc@gmail.com
 #+author: Daniel Alexander Smith
+* Metadata
+#+name: Version_Number
+#+BEGIN_EXAMPLE
+  "0.3.0"
+#+END_EXAMPLE
 * Readme
+#+name: readme
+#+begin_src text :tangle readme.md
 html2csv is a simple script that takes an html page, extracts the table from it, and returns a csv file as an output.
 It has been tested in debian with python 3.4
 To run the script, first make sure it is executable.
 Then enter something like:
   ~/./main.py filetoprocess
 check the help option for details.
+#+end_src
 * Licence
 #+name: Licence
-#+BEGIN_EXAMPLE 
+#+BEGIN_SRC text :tangle licence.md 
   The MIT License (MIT)
   Copyright (c) 2016 Daniel Alexander Smith
 
@@ -19,10 +27,36 @@ check the help option for details.
   The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-#+END_EXAMPLE
-* Code
-#+name: setup.py
-#+BEGIN_SRC python :tangle setup.py :shebang #!/usr/bin/python3
+
+#+END_SRC
+* Setup
+#+name: pip_setup
+#+BEGIN_SRC python :tangle setup.py
+  from setuptools import setup
+
+  setup(
+      name="html2csv",
+      version=v,
+      description='A html to csv table converter',
+      url='https://github.com/Nalisarc/html2csv',
+      author='Daniel Alexander Smith',
+      author_email='nalisarc@gmail.com',
+      license='MIT',
+      packages=['html2csv'],
+      install_requires=[
+          'bs4',
+          'requests',
+      ]
+      zip_safe=False)
+#+END_SRC
+
+#+name: freeze_setup.py
+#+BEGIN_SRC python :tangle freeze_setup.py :shebang #!/usr/bin/python3 :var version=Version_Number
+  """
+  This script is for creating a frozen version of the program.
+  This is useful for Windows so you can have a nice exe file to run
+  """
+
   from cx_Freeze import setup, Executable
 
   # Dependencies are automatically detected, but it might need
@@ -32,89 +66,162 @@ check the help option for details.
   base = 'Console'
 
   executables = [
-      Executable('main.py', base=base, targetName = 'html2csv')
+      Executable('html2csv-script', base=base, targetName = 'html2csv.exe')
   ]
 
   setup(name='html2csv',
-	version = '0.2.0',
-	description = 'a simple html to csv converter',
+	version = version,
+	description = 'A simple HTML to CSV converter',
 	options = dict(build_exe = buildOptions),
 	executables = executables)
 
 #+END_SRC
-
-#+name: main.py
-#+BEGIN_SRC python :tangle main.py :shebang #!/usr/bin/python3 :results output    
+* Package Initialization
+#+BEGIN_SRC python :tangle html2csv/__init__.py :noweb yes 
+  # Third Party Modules
   from bs4 import BeautifulSoup
   import requests
 
-  import sys
+  # Standard Library Modules
+  import argparse
   import re
   import csv
-  import argparse
+  import sys
 
+  # functions
+  <<file_reader>>
+  <<url_reader>>
+  <<html_parser>>
+  <<csv_writer>>
+#+END_SRC
+
+#+BEGIN_SRC python :tangle tests/__init__.py 
+#+END_SRC
+
+* Command Line Arguments
+#+name: argparse
+#+BEGIN_SRC python
   parser = argparse.ArgumentParser(description="Converts html tables into csv tables")
 
-  parser.add_argument("-v","--verbosity", help="Enables verbose mode, usefule for debugging.", action="store_true")
-  parser.add_argument("file", help="A file to read in", nargs='*')
-  #parser.add_argument("--ommit-column", help="Ommits a column from the output", nargs='+')
+  parser.add_argument("-v","--verbose", help="Enables verbose mode, useful for debugging.", action="store_true")
+  parser.add_argument("input", help="A file to read in",type=str)
+  parser.add_argument("output", help="Name of the output file", type=str)
+  #parser.add_argument("--ommit-column", help="Ommits the given columns from the output", nargs='+')
+  #parser.add_argument("--ommit-row", help="Ommits the given rows from the output", nargs="+")
+  #parser.add_argument("--append-column", help="Appends the given to the end of each row", type=str)
+
 
   args = parser.parse_args()
 
-  if args.verbosity:
-          print("Verbose mode enabled")
-          def verboseprint(*args):
-                  for arg in args:
-                          print(arg,)
-                  return None
-  else:
-          verboseprint = lambda *a: None
-  """
-  def url_reader(url):
-          site = requests.get(url)
-          return site.text
-  """
+  verboseprint = print if args.verbose else lambda *a, **k: None
+
+#+END_SRC
+* File Input
+#+name: file_reader
+#+BEGIN_SRC python
+
   def file_reader(file_):
           with open(file_, 'rb') as f:
                   return f.read()
+          return 1
+#+END_SRC
+
+* URL Input
+#+name: url_reader
+#+BEGIN_SRC python
+  def url_reader(url):
+          site = requests.get(url)
+          return site.text
+
+#+END_SRC
+
+* HTML Parser
+#+name: html_parser
+#+BEGIN_SRC python
+  from bs4 import BeautifulSoup
+  import re
+
   def cell_text(cell):
           # strips down the cell for read-ablility
           return " ".join(cell.stripped_strings)
 
 
-  def converter(in_, out):
+  def html_parser(in_,):
           pattern = 't[dh]'
-          with open(out,'w') as o: #Makes sure that file spawn before processing
-                  soup = BeautifulSoup(in_,'html.parser')
+          output = []
+          soup = BeautifulSoup(in_,'html.parser')
+          table = soup.find('table')
+          for row in table.find_all('tr'):
+                  col = [cell_text(ele)
+			 for ele in row.find_all(re.compile(pattern))
+			 ]
+                  output.append(col)
+
+          return output
+#+END_SRC
+* CSV Writer
+#+name: csv_writer
+#+BEGIN_SRC python
+  import csv
+  def csv_writer(in_, out):
+          with open(out,'w') as o:
                   output = csv.writer(o)
-                  table = soup.find('table')
-                  for row in table.find_all('tr'):
-                          col = [cell_text(ele)
-				 for ele in row.find_all(re.compile(pattern))
-                          ]
-                          col.remove(col[2])
+                  for row in in_:
+                          col = [ele for ele in row]
                           output.writerow(col)
-                          output.writerow([])
+                  return None
+          return 1
+#+END_SRC
 
-  def main(args):
-          if args.file:
-                  verboseprint("begining coversion process")
+* Execution
+#+name: executable-script
+#+BEGIN_SRC python :tangle html2csv-script  :noweb yes :shebang #!/usr/bin/env python3
+  from html2csv import *
+  import argparse
+  import sys
+  <<argparse>>
+
+  def main(i,o):
+          if i[0:5] == "http:":
+                  verboseprint("input is url")
+                  RAW_TABLE = url_reader(i)
           else:
-                  verboseprint("No inputs specified")
-                  return 1
+                  verboseprint("input is a file")
+                  RAW_TABLE = file_reader(i)
 
-          if args.file:               
-                  for f in args.file:
-                          verboseprint("Processing: {0}".format(f))
-                          converter((file_reader(f)),(str(f) + ".csv"))
-
-          """        
-          if args.url:
-                  for u in args.url:
-                          verboseprint("Processing: {0}".format(u))
-                          converter(url_reader(u),(str(u) + ".csv"))"""
+          verboseprint("parsing RAW_HTML")
+          PARSED_TABLE = html_parser(RAW_TABLE)
+          verboseprint("HTML has been parsed")
+          verboseprint("Writing to file")
+          csv_writer(PARSED_TABLE, o)
+          verboseprint("File successfully written to: ".format(o))
           return None
-  if __name__ == '__main__':
-          main(args)
-          sys.exit()
+
+  verboseprint("verbose mode enabled")
+  verboseprint("processing: ", args.input)
+  main(
+          args.input,
+          args.output
+          )
+
+  sys.exit()
+
+
+#+END_SRC
+
+* Tests
+** Functional Tests
+#+name: functionaltests
+#+BEGIN_SRC python :tangle tests/functionaltests.py 
+
+#+END_SRC
+
+** Unit Tests
+#+name: unittest
+#+BEGIN_SRC python :tests/unittests.py 
+  import unittests
+  import html2csv
+
+  class UnitTests(unittest.TestCase):
+    
 #+END_SRC
