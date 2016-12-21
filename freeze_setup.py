@@ -15,11 +15,11 @@ buildOptions = dict(packages = [], excludes = [])
 base = 'Console'
 
 executables = [
-    Executable('run.py', base=base, targetName = 'run.exe')
+    Executable('html2csv-script', base=base, targetName = 'html2csv.exe')
 ]
 
 setup(name='html2csv',
-      version = version,
-      description = 'A simple HTML to CSV converter',
-      options = dict(build_exe = buildOptions),
-      executables = executables)
+version = version,
+description = 'A simple HTML to CSV converter',
+options = dict(build_exe = buildOptions),
+executables = executables)

@@ -6,3 +6,6 @@
 *~
 *.pyc
 /tests/testcase.html.csv
+build/
+dist/
+*.egg-info/

@@ -9,12 +9,9 @@
 * Readme
 #+name: readme
 #+begin_src text :tangle readme.md
-html2csv is a simple script that takes an html page, extracts the table from it, and returns a csv file as an output.
-It has been tested in debian with python 3.4
-To run the script, first make sure it is executable.
-Then enter something like:
-  ~/./main.py filetoprocess
-check the help option for details.
+  html2csv is a simple python script that converts html tables into a csv spreadsheet.
+  A gist of the program can be found here; but for more indepth documention, commentary, and other useful tidbits
+  check out index.org.
 #+end_src
 * Licence
 #+name: Licence
@@ -31,7 +28,7 @@ check the help option for details.
 #+END_SRC
 * Setup
 #+name: pip_setup
-#+BEGIN_SRC python :tangle setup.py
+#+BEGIN_SRC python :tangle setup.py :var v=Version_Number
   from setuptools import setup
 
   setup(
@@ -42,11 +39,12 @@ check the help option for details.
       author='Daniel Alexander Smith',
       author_email='nalisarc@gmail.com',
       license='MIT',
+      scripts=['bin/html2csv'],
       packages=['html2csv'],
       install_requires=[
           'bs4',
           'requests',
-      ]
+      ],
       zip_safe=False)
 #+END_SRC
 
@@ -70,10 +68,10 @@ check the help option for details.
   ]
 
   setup(name='html2csv',
-	version = version,
-	description = 'A simple HTML to CSV converter',
-	options = dict(build_exe = buildOptions),
-	executables = executables)
+  version = version,
+  description = 'A simple HTML to CSV converter',
+  options = dict(build_exe = buildOptions),
+  executables = executables)
 
 #+END_SRC
 * Package Initialization
@@ -98,6 +96,10 @@ check the help option for details.
 #+BEGIN_SRC python :tangle tests/__init__.py 
 #+END_SRC
 
+
+#+BEGIN_SRC python :tangle bin/__init__.py 
+#+END_SRC
+
 * Command Line Arguments
 #+name: argparse
 #+BEGIN_SRC python
@@ -106,9 +108,6 @@ check the help option for details.
   parser.add_argument("-v","--verbose", help="Enables verbose mode, useful for debugging.", action="store_true")
   parser.add_argument("input", help="A file to read in",type=str)
   parser.add_argument("output", help="Name of the output file", type=str)
-  #parser.add_argument("--ommit-column", help="Ommits the given columns from the output", nargs='+')
-  #parser.add_argument("--ommit-row", help="Ommits the given rows from the output", nargs="+")
-  #parser.add_argument("--append-column", help="Appends the given to the end of each row", type=str)
 
 
   args = parser.parse_args()
@@ -121,6 +120,8 @@ check the help option for details.
 #+BEGIN_SRC python
 
   def file_reader(file_):
+          #Opens a file and and returns the contents as a string
+
           with open(file_, 'rb') as f:
                   return f.read()
           return 1
@@ -129,7 +130,7 @@ check the help option for details.
 * URL Input
 #+name: url_reader
 #+BEGIN_SRC python
-  def url_reader(url):
+  def url_reader(url, auth=None):
           site = requests.get(url)
           return site.text
 
@@ -147,14 +148,20 @@ check the help option for details.
 
 
   def html_parser(in_,):
+          """
+  Takes an html string and searches for the first table.
+  Using regular expressions it finds all table rows and headers.
+  Then each cell of the found rows are striped and made into a list.
+  Then exports that those lists in a two by two list or a Dataframe if that name suites you better.
+          """
           pattern = 't[dh]'
           output = []
           soup = BeautifulSoup(in_,'html.parser')
           table = soup.find('table')
           for row in table.find_all('tr'):
                   col = [cell_text(ele)
-			 for ele in row.find_all(re.compile(pattern))
-			 ]
+		   for ele in row.find_all(re.compile(pattern))
+		    ]
                   output.append(col)
 
           return output
@@ -175,7 +182,7 @@ check the help option for details.
 
 * Execution
 #+name: executable-script
-#+BEGIN_SRC python :tangle html2csv-script  :noweb yes :shebang #!/usr/bin/env python3
+#+BEGIN_SRC python :tangle bin/html2csv-script  :noweb yes :shebang #!/usr/bin/env python3
   from html2csv import *
   import argparse
   import sys
@@ -213,15 +220,60 @@ check the help option for details.
 ** Functional Tests
 #+name: functionaltests
 #+BEGIN_SRC python :tangle tests/functionaltests.py 
+  import unittests
+  import html2csv
+  import os
+
+
+
 
 #+END_SRC
 
 ** Unit Tests
 #+name: unittest
-#+BEGIN_SRC python :tests/unittests.py 
+#+BEGIN_SRC python :tangle tests/unittests.py 
   import unittests
   import html2csv
+  import os
+  import sys
 
   class UnitTests(unittest.TestCase):
-    
+
+
+      def test_can_read_file(self):
+
+          test_read = html2csv.file_reader("tests/testcase.html")
+
+          self.assertNotEqual(len(test_read),0)
+
+      def test_can_read_url(self):
+
+          test_read = url_reader("http://www.w3schools.com/html/html_tables.asp")
+
+          self.assertNotEqual(len(test_read),0)
+
+      def test_can_parse_html(self):
+
+          file_input = html2csv.file_reader("tests/testcase.html")
+
+          parsed_table = html2csv.html_parser(file_input)
+
+          self.assertNotEqual(len(parsed_table),0)
+
+          control_table = [["hello","world"][1,2]['a','b']]
+
+          self.assertEqual(parsed_table,control_table)
+
+      def test_can_write_to_output(self):
+
+          file_input = html2csv.file_reader("tests/testcase.html")
+
+          parsed_table = html2csv.html_parser(file_input)
+
+          html2csv.csv_writer(parsed_table,"tests/testoutput.csv")
+
+          with open("tests/testoutput.csv","r") as f:
+              self.assertNotEqual(len(f.read()),0)
+
+
 #+END_SRC

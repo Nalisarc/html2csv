@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+from html2csv import *
+import argparse
+import sys
+parser = argparse.ArgumentParser(description="Converts html tables into csv tables")
+
+parser.add_argument("-v","--verbose", help="Enables verbose mode, useful for debugging.", action="store_true")
+parser.add_argument("input", help="A file to read in",type=str)
+parser.add_argument("output", help="Name of the output file", type=str)
+
+
+args = parser.parse_args()
+
+verboseprint = print if args.verbose else lambda *a, **k: None
+
+
+def main(i,o):
+        if i[0:5] == "http:":
+                verboseprint("input is url")
+                RAW_TABLE = url_reader(i)
+        else:
+                verboseprint("input is a file")
+                RAW_TABLE = file_reader(i)
+
+        verboseprint("parsing RAW_HTML")
+        PARSED_TABLE = html_parser(RAW_TABLE)
+        verboseprint("HTML has been parsed")
+        verboseprint("Writing to file")
+        csv_writer(PARSED_TABLE, o)
+        verboseprint("File successfully written to: ".format(o))
+        return None
+
+verboseprint("verbose mode enabled")
+verboseprint("processing: ", args.input)
+main(
+        args.input,
+        args.output
+        )
+
+sys.exit()

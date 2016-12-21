@@ -1,6 +1,3 @@
-html2csv is a simple script that takes an html page, extracts the table from it, and returns a csv file as an output.
-It has been tested in debian with python 3.4
-To run the script, first make sure it is executable.
-Then enter something like:
-  ~/./main.py filetoprocess
-check the help option for details.
+html2csv is a simple python script that converts html tables into a csv spreadsheet.
+A gist of the program can be found here; but for more indepth documention, commentary, and other useful tidbits
+check out index.org.
